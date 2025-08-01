@@ -30,6 +30,8 @@ class Univariate:
             descriptive.loc["1.5rule", columnName] = 1.5 * descriptive[columnName]["IQR"]
             descriptive.loc["LesserRange", columnName] = descriptive[columnName]["Q1-25th%"] - descriptive[columnName]["1.5rule"]
             descriptive.loc["GreaterRange", columnName] = descriptive[columnName]["Q3-75th%"] + descriptive[columnName]["1.5rule"]
+            descriptive.loc["Skew", columnName] = descriptive[columnName].skew().round(2)
+            descriptive.loc["Kurtosis", columnName] = descriptive[columnName].kurtosis().round(2)
 
         return descriptive
     
@@ -38,19 +40,24 @@ class Univariate:
         lesser = []
         greater = []
         for columnName in quan:
-            if descriptive[columnName]["LesserRange"] > descriptive[columnName]["Min"]:
-                lesser.append(columnName)
-                descriptive.loc["LesserOutlier", columnName] = True
-            else:
-                descriptive.loc["LesserOutlier", columnName] = False
+            min_val = descriptive[columnName]["Min"]
+            max_val = descriptive[columnName]["Max-100th%"]
+            lesser_range = descriptive[columnName]["LesserRange"]
+            greater_range = descriptive[columnName]["GreaterRange"]
 
-            if descriptive[columnName]["GreaterRange"] < descriptive[columnName]["Max-100th%"]:
+            is_lesser_outlier = lesser_range > min_val
+            is_greater_outlier = greater_range < max_val
+
+            descriptive.loc["LesserOutlier", columnName] = is_lesser_outlier
+            descriptive.loc["GreaterOutlier", columnName] = is_greater_outlier
+
+            if is_lesser_outlier:
+                lesser.append(columnName)
+            if is_greater_outlier:
                 greater.append(columnName)
-                descriptive.loc["GreaterOutlier", columnName] = True
-            else:
-                descriptive.loc["GreaterOutlier", columnName] = False
-                   
+
         return descriptive, lesser, greater
+
 
     def remove_outliers(descriptive, data, lesser, greater):
         for columnName in lesser:
@@ -58,3 +65,16 @@ class Univariate:
         for columnName in greater:
             data.loc[data[columnName] > descriptive[columnName]["GreaterRange"], columnName] = descriptive[columnName]["GreaterRange"]
         return data
+    
+    def freqTable(data, columnName):
+        
+        total = len(data)
+        
+        freq_series = data[columnName].value_counts()  
+        freqTable = pd.DataFrame({
+            "UniqueValues": freq_series.index,
+            "Frequency": freq_series.values
+        })
+        freqTable["RelativeFrequency%"]=(freqTable["Frequency"]/total*100).round(2)
+        freqTable["Cumsum%"]=freqTable["RelativeFrequency%"].cumsum()
+        return freqTable
