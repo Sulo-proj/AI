@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+from sklearn.impute import SimpleImputer
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 class Univariate:
 
@@ -32,7 +34,8 @@ class Univariate:
             descriptive.loc["GreaterRange", columnName] = descriptive[columnName]["Q3-75th%"] + descriptive[columnName]["1.5rule"]
             descriptive.loc["Skew", columnName] = descriptive[columnName].skew().round(2)
             descriptive.loc["Kurtosis", columnName] = descriptive[columnName].kurtosis().round(2)
-
+            descriptive.loc["Var", columnName] = descriptive[columnName].var().round(2)
+            descriptive.loc["Std", columnName] = descriptive[columnName].std().round()
         return descriptive
     
     
@@ -78,3 +81,62 @@ class Univariate:
         freqTable["RelativeFrequency%"]=(freqTable["Frequency"]/total*100).round(2)
         freqTable["Cumsum%"]=freqTable["RelativeFrequency%"].cumsum()
         return freqTable
+    
+    
+class Preprocessing:
+
+    def simple_missing(data, quan, qual):
+
+        # Drop rows for ≤ 5% missing
+        low_missing_cols = [col for col in data.columns if 0 < data[col].isna().mean() <= 0.05]
+        if low_missing_cols:
+            data = data.dropna(subset=low_missing_cols)
+
+        # SimpleImputer for >5% & ≤25% missing
+        mid_missing_num = [col for col in quan if 0.05 < data[col].isna().mean() <= 0.25]
+        mid_missing_cat = [col for col in qual if 0.05 < data[col].isna().mean() <= 0.25]
+
+        if mid_missing_num:
+            mean_cols = [col for col in mid_missing_num if abs(data[col].skew()) < 1]
+            median_cols = list(set(mid_missing_num) - set(mean_cols))
+
+            if mean_cols: # mean for normal data
+                data.loc[:, mean_cols] = SimpleImputer(strategy='mean').fit_transform(data[mean_cols])
+            if median_cols: # median for skewed data
+                data.loc[:, median_cols] = SimpleImputer(strategy='median').fit_transform(data[median_cols])
+
+        if mid_missing_cat: # mode for categorical data
+            data.loc[:, mid_missing_cat] = SimpleImputer(strategy='most_frequent').fit_transform(data[mid_missing_cat])
+
+        return data
+
+
+
+    def model_missing(data, quan):
+
+        high_missing_cols = [col for col in data.columns if data[col].isna().mean() > 0.25]
+
+        for col in high_missing_cols:
+            known = data[data[col].notna()] # data without null rows
+            unknown = data[data[col].isna()] # data with null rows
+            if unknown.empty:
+                continue
+
+            X_known = pd.get_dummies(known.drop(columns=[col]), dummy_na=True)
+            X_unknown = pd.get_dummies(unknown.drop(columns=[col]), dummy_na=True)
+            X_unknown = X_unknown.reindex(columns=X_known.columns, fill_value=0) # align columns
+
+            y_known = known[col]
+            
+            if col in quan:
+                model = DecisionTreeRegressor(random_state=10)
+            else:
+                model = DecisionTreeClassifier(random_state=10)
+
+            model.fit(X_known, y_known)
+            prediction = model.predict(X_unknown)
+
+            data.loc[data[col].isna(), col] = prediction
+
+        return data
+
