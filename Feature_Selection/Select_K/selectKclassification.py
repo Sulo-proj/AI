@@ -14,13 +14,15 @@ def kbest_and_scale(X, y, k_no):
     # SelectKBest feature selection
     selector = SelectKBest(score_func=chi2, k=k_no)
     X_new = selector.fit_transform(X, y)
+    selected_features = X.columns[selector.get_support(indices=True)]
+
     # Split
     X_train, X_test, y_train, y_test = train_test_split(X_new, y, test_size=0.25, random_state=10)
     # Standardize features
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
-    return X_train, X_test, y_train, y_test
+    return X_train, X_test, y_train, y_test, selected_features
 
 def train_and_score(classifier, X_train, y_train, X_test, y_test):
     classifier.fit(X_train, y_train)
@@ -28,7 +30,7 @@ def train_and_score(classifier, X_train, y_train, X_test, y_test):
     return accuracy_score(y_test, y_pred)
 
 def run_all_classifiers(X, y, k_no):
-    X_train, X_test, y_train, y_test = kbest_and_scale(X, y, k_no)
+    X_train, X_test, y_train, y_test, selected_features = kbest_and_scale(X, y, k_no)
     # Classifiers dictionary for easy iteration
     classifiers = {
         'Logistic': LogisticRegression(random_state=0),
@@ -44,12 +46,12 @@ def run_all_classifiers(X, y, k_no):
     for name, clf in classifiers.items():
         acc = train_and_score(clf, X_train, y_train, X_test, y_test)
         results[name] = acc
-    return results
+    return results, selected_features
 
 def selectk_Classification(indep_X, dep_Y, k_no):
     # Get classification results as one-row DataFrame
-    row = run_all_classifiers(indep_X, dep_Y, k_no)
+    row, selected_features = run_all_classifiers(indep_X, dep_Y, k_no)
+    row['Selected_Features'] = ', '.join(selected_features)
     dataframe = pd.DataFrame([row], index=['ChiSquare'])
     return dataframe
-
 
