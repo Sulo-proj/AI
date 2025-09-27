@@ -25,7 +25,6 @@ def rfeFeature(indep_X, dep_Y, n_features):
     ]
 
     for model in models:
-        print(f"Running RFE with: {model.__class__.__name__}")
         rfe = RFE(model, n_features_to_select=n_features)
         rfe_fit = rfe.fit(indep_X, dep_Y)
         selected_features = list(indep_X.columns[rfe_fit.get_support(True)])
@@ -73,25 +72,52 @@ def all_classifiers(X_train, X_test, y_train, y_test):
 # -------------------------------
 # Collect results into DataFrame
 # -------------------------------
+# def rfe_classification(rfe_results, features_list, dep_Y):
+#     rfedataframe = pd.DataFrame(
+#         index=['LogisticRFE', 'SVCRFE', 'RandomForestRFE', 'DecisionTreeRFE'],
+#         columns=['No_of_Features', 'Selected_Features', 'Logistic', 'SVMl', 'SVMnl', 'KNN', 'Naive', 'Decision', 'Random']
+#     )
+
+#     for number, rfe_df in enumerate(rfe_results):
+#         X_train, X_test, y_train, y_test = split_scalar(rfe_df, dep_Y)
+#         accuracies = all_classifiers(X_train, X_test, y_train, y_test)
+
+#         # Save feature names as a string
+#         rfedataframe.loc[rfedataframe.index[number], 'Selected_Features'] = ", ".join(features_list[number])
+
+#         # Save classifier accuracies
+#         for clf_name, acc in accuracies.items():
+#             rfedataframe.loc[rfedataframe.index[number], 'No_of_Features'] = len(features_list)-1
+#             rfedataframe.loc[rfedataframe.index[number], clf_name] = acc
+
+#     return rfedataframe
+
+
 def rfe_classification(rfe_results, features_list, dep_Y):
-    rfedataframe = pd.DataFrame(
-        index=['LogisticRFE', 'SVCRFE', 'RandomForestRFE', 'DecisionTreeRFE'],
-        columns=['Selected_Features', 'Logistic', 'SVMl', 'SVMnl', 'KNN', 'Naive', 'Decision', 'Random']
-    )
+    rfe_models = ['LogisticRFE', 'SVCRFE', 'RandomForestRFE', 'DecisionTreeRFE']
+    
+    # Collect rows in a list, then build DataFrame
+    rows = []
 
     for number, rfe_df in enumerate(rfe_results):
         X_train, X_test, y_train, y_test = split_scalar(rfe_df, dep_Y)
         accuracies = all_classifiers(X_train, X_test, y_train, y_test)
 
-        # Save feature names as a string
-        rfedataframe.loc[rfedataframe.index[number], 'Selected_Features'] = ", ".join(features_list[number])
+        row_data = {
+            'No_of_Features': len(features_list[number]),
+            'RFE_Model': rfe_models[number],
+            'Selected_Features': ", ".join(features_list[number])
+        }
+        row_data.update(accuracies)  # merge classifier scores
 
-        # Save classifier accuracies
-        for clf_name, acc in accuracies.items():
-            rfedataframe.loc[rfedataframe.index[number], clf_name] = acc
+        rows.append(row_data)
+
+    rfedataframe = pd.DataFrame(rows, 
+        columns=[ 'No_of_Features', 'RFE_Model', 'Selected_Features', 
+                 'Logistic', 'SVMl', 'SVMnl', 'KNN', 'Naive', 'Decision', 'Random']
+    )
 
     return rfedataframe
-
 
 
 
