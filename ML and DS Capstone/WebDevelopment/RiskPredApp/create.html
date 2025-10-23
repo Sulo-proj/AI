@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% block body_block %}
+<div class="jumbotron">
+  <h1>Stock Risk Prediction</h1>
+  <head>
+    Please enter Stock for which you want to Predict Risk Classes
+  </head>
+
+    <form method = "post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form|crispy }}
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+  </div>
+{% endblock %}
