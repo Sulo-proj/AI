@@ -1,7 +1,3 @@
-CREATE DATABASE coding_two;
-
-USE DATABASE coding_two;
-
 -- Creating employees table
 CREATE TABLE employees (
     employee_id INT PRIMARY KEY,
